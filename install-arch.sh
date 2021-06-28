@@ -47,7 +47,7 @@ set_keyboard_layout(){
 		keyboard_layout='us'
 	fi
 
-	if ! ls /usr/share/kbd/keymaps/**/*"$keyboard_layout"*.map.gz; then
+	if ! ls /usr/share/kbd/keymaps/**/*"$keyboard_layout"*.map.gz >/dev/null 2>&1; then
 		print_error "Keyboard layout not found"
 		keyboard_layout=''
 		set_keyboard_layout
@@ -65,7 +65,7 @@ verify_boot_mode(){
 }
 
 update_system_clock(){
-	timedatectl set-ntp true
+	timedatectl set-ntp true >/dev/null 2>&1
 }
 
 clean_dirve(){
