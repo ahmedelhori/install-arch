@@ -99,14 +99,14 @@ partion_disk(){
 	fi
 
 	if [ "$boot_mode" = 'uefi' ]; then
-		sfdisk -W /dev/"$drive_name" <<- EOF
+		sfdisk -W always /dev/"$drive_name" <<- EOF
 			label: gpt
 			size=512MiB, type=uefi, bootable
 			size=4GiB, type=swap
 			type=linux
 		EOF
 	else
-		sfdisk -W /dev/"$drive_name" <<- EOF
+		sfdisk -W always /dev/"$drive_name" <<- EOF
 			label: dos
 			size=512MiB, type=linux, bootable
 			size=4GiB, type=swap
