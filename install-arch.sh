@@ -57,7 +57,7 @@ set_keyboard_layout(){
 }
 
 verify_boot_mode(){
-	if ls /sys/firmware/efi/efivars 2>&1 >/dev/null; then
+	if ls /sys/firmware/efi/efivars >/dev/null 2>&1; then
 		boot_mode='uefi'
 	else
 		boot_mode='bios'
@@ -99,27 +99,29 @@ partion_disk(){
 	fi
 
 	if [ "$boot_mode" = 'uefi' ]; then
-		sfdisk /dev/"$drive_name" <<- EOF
+		sfdisk -W /dev/"$drive_name" <<- EOF
 			label: gpt
-			size=512MiB, type=uefi, bootable"
-			size=4GiB, type=swap"
-			type=linux"
+			size=512MiB, type=uefi, bootable
+			size=4GiB, type=swap
+			type=linux
 		EOF
 	else
-		sfdisk /dev/"$drive_name" <<- EOF
-			label: gpt
-			size=512MiB, type=linux, bootable"
-			size=4GiB, type=swap"
-			type=linux"
+		sfdisk -W /dev/"$drive_name" <<- EOF
+			label: dos
+			size=512MiB, type=linux, bootable
+			size=4GiB, type=swap
+			type=linux
 		EOF
 	fi
 }
 
-format_partition(){
+get_partition_path(){
 	boot_path="$(blkid | grep "/dev/${drive_name}.*1" | sed -n 's/^\(\/dev\/'"${drive_name}"'.*1\):\s\+.*$/\1/p')"
 	swap_path="$(blkid | grep "/dev/${drive_name}.*2" | sed -n 's/^\(\/dev\/'"${drive_name}"'.*2\):\s\+.*$/\1/p')"
 	root_path="$(blkid | grep "/dev/${drive_name}.*3" | sed -n 's/^\(\/dev\/'"${drive_name}"'.*3\):\s\+.*$/\1/p')"
+}
 
+format_partition(){
 	if [ "$boot_mode" = 'uefi' ]; then
 		mkfs.fat -F32 "$boot_path"
 		mkswap "$swap_path"
@@ -132,10 +134,10 @@ format_partition(){
 }
 
 mount_file_system(){
-	mount /dev/"$drive_name"3 /mnt
+	mount "$root_path" /mnt
 	mkdir /mnt/boot
-	mount /dev/"$drive_name"2 /mnt/boot
-	swapon /dev/"$drive_name"1
+	mount "$boot_path" /mnt/boot
+	swapon "$swap_path"
 }
 
 install_essential_packages(){
@@ -156,6 +158,7 @@ main(){
 	verify_boot_mode
 	update_system_clock
 	partion_disk
+	get_partition_path
 	format_partition
 	mount_file_system
 	install_essential_packages
