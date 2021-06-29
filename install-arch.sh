@@ -153,7 +153,7 @@ generate_fstab(){
 }
 
 copy_script_to_chroot(){
-	cp "$0" /mnt/root
+	cp "$0" /mnt/root/script.sh
 	cat <<-EOF > /mnt/root/env.sh
 	export keyboard_layout=${keyboard_layout}
 	export boot_mode=${boot_mode}
@@ -162,7 +162,7 @@ copy_script_to_chroot(){
 }
 
 run_arch_chroot(){
-	arch-chroot /mnt /bin/bash -c 'bash /root/env.sh; bash /root/${0} part2'
+	arch-chroot /mnt /bin/bash -c 'bash /root/env.sh; bash /root/script.sh part2'
 }
 
 finish_and_reboot(){
