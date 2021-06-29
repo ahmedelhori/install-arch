@@ -51,7 +51,7 @@ set_keyboard_layout(){
 		keyboard_layout='us'
 	fi
 
-	if [ -f /usr/share/kbd/keymaps/**/*"$keyboard_layout"*.map.gz ]; then
+	if ls /usr/share/kbd/keymaps/**/*"$keyboard_layout"*.map.gz >/dev/null 2>&1; then
 		loadkeys "$keyboard_layout"
 	else
 		print_error "Keyboard layout not found"
