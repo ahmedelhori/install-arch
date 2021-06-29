@@ -263,12 +263,10 @@ run_part2(){
 }
 
 main(){
-	if [ "$1" = 'part1' ];then
-		run_part1 "$@"
-	elif [ "$1" = 'part2' ];then
+	if [ "$1" = 'part2' ];then
 		run_part2 "$@"
 	else
-		print_error "Part not specified (e.g., ${NAME} part1)."
+		run_part1 "$@"
 	fi
 }
 
