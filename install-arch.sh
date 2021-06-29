@@ -157,7 +157,7 @@ copy_script_to_chroot(){
 	cat <<-EOF > /mnt/root/env.sh
 	export keyboard_layout=${keyboard_layout}
 	export boot_mode=${boot_mode}
-	drive_name=${drive_name}
+	export drive_name=${drive_name}
 	EOF
 }
 
