@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Author:       Ahmed Elhori <dev@elhori.com>
 # License:      GNU GPLv3
@@ -12,6 +12,10 @@ keyboard_layout=
 want_clean_drive=
 want_encryption=
 drive_name=
+package_list='base linux linux-firmware vim networkmanager intel-ucode grub'
+timezone_region=
+timezone_city=
+hostname=
 
 print_error(){
 	message="$1"
@@ -47,17 +51,17 @@ set_keyboard_layout(){
 		keyboard_layout='us'
 	fi
 
-	if ! ls /usr/share/kbd/keymaps/**/*"$keyboard_layout"*.map.gz >/dev/null 2>&1; then
+	if [ -f /usr/share/kbd/keymaps/**/*"$keyboard_layout"*.map.gz ]; then
+		loadkeys "$keyboard_layout"
+	else
 		print_error "Keyboard layout not found"
 		keyboard_layout=''
 		set_keyboard_layout
-	else
-		loadkeys "$keyboard_layout"
 	fi
 }
 
 verify_boot_mode(){
-	if ls /sys/firmware/efi/efivars >/dev/null 2>&1; then
+	if [ -d /sys/firmware/efi/efivars ]; then
 		boot_mode='uefi'
 	else
 		boot_mode='bios'
@@ -85,7 +89,7 @@ get_drive_name(){
 partion_disk(){
 	while [ -z "$drive_name" ]; do
 		get_drive_name
-		while ! ls /dev/"$drive_name" 2>&1 >/dev/null; do
+		while ! [ -b /dev/"$drive_name" ]; do
 			print_error "Drive \"${drive_name}\" not found."
 			get_drive_name
 		done
@@ -116,9 +120,9 @@ partion_disk(){
 }
 
 get_partition_path(){
-	boot_path="$(blkid | grep "/dev/${drive_name}.*1" | sed -n 's/^\(\/dev\/'"${drive_name}"'.*1\):\s\+.*$/\1/p')"
-	swap_path="$(blkid | grep "/dev/${drive_name}.*2" | sed -n 's/^\(\/dev\/'"${drive_name}"'.*2\):\s\+.*$/\1/p')"
-	root_path="$(blkid | grep "/dev/${drive_name}.*3" | sed -n 's/^\(\/dev\/'"${drive_name}"'.*3\):\s\+.*$/\1/p')"
+	boot_path="$(blkid | grep "/dev/${drive_name}.*1" | sed -n 's/^\(\/dev\/'"$drive_name"'.*1\):\s\+.*$/\1/p')"
+	swap_path="$(blkid | grep "/dev/${drive_name}.*2" | sed -n 's/^\(\/dev\/'"$drive_name"'.*2\):\s\+.*$/\1/p')"
+	root_path="$(blkid | grep "/dev/${drive_name}.*3" | sed -n 's/^\(\/dev\/'"$drive_name"'.*3\):\s\+.*$/\1/p')"
 }
 
 format_partition(){
@@ -141,18 +145,29 @@ mount_file_system(){
 }
 
 install_essential_packages(){
-	pacstrap /mnt base linux linux-firmware vim networkmanager
+	pacstrap /mnt "$package_list"
 }
 
 generate_fstab(){
 	genfstab -U /mnt >> /mnt/etc/fstab
 }
 
-run_arch_chroot(){
-	arch-chroot /mnt
+copy_script_to_chroot(){
+	cp "$0" /mnt/root
 }
 
-main(){
+run_arch_chroot(){
+	arch-chroot /mnt /bin/bash -c "keyboard_layout=${keyboard_layout} boot_mode=${boot_mode} drive_name=${drive_name} bash ./${0} 'part2'"
+}
+
+finish_and_reboot(){
+	umount -R /mnt
+	echo 'Rebooting in 5Sec'
+	sleep 5
+	reboot
+}
+
+run_part1(){
 	check_root
 	set_keyboard_layout
 	verify_boot_mode
@@ -163,7 +178,92 @@ main(){
 	mount_file_system
 	install_essential_packages
 	generate_fstab
+	copy_script_to_chroot
 	run_arch_chroot
+	finish_and_reboot
+}
+
+set_time_zone(){
+	printf 'Enter the name of your Region (e.g., Europe): '
+	read timezone_region
+	printf 'Enter the timezone name of your city (e.g., Berlin): '
+	read timezone_city
+
+	if ls /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" >/dev/null 2>&1; then
+		ln -sf /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" /etc/localtime
+	else
+		print_error "The specified Region, and/or city were not found."
+		set_time_zone
+	fi
+}
+
+set_hardware_clock(){
+	hwclock --systohc
+}
+
+set_locale(){
+	locale='en_US.UTF-8'
+	sed -i '0,/^\s*#\+\s*\('"$locale"'.*\)$/ s/^\s*#\+\s*\('"$locale"'.*\)$/\1/' /etc/locale.gen
+	locale-gen
+	echo "LANG=${locale}" > /etc/locale.conf
+}
+
+set_vconsole(){
+	echo "KEYMAP=${keyboard_layout}" > /etc/vconsole.conf
+}
+
+configure_network(){
+	while [ -z "$hostname" ]; do
+		printf 'Enter hostname: '
+		read hostname
+	done
+
+	echo "$hostname" > /etc/hostname
+
+	cat <<- EOF > /etc/hosts
+	127.0.0.1	localhost
+	::1		localhost
+	127.0.1.1	"${hostname}".localdomain	"${hostname}"
+	EOF
+}
+
+run_initramfs(){
+	mkinitcpio -P
+}
+
+change_root_password(){
+	passwd
+}
+
+install_boot_loader(){
+	if [ "$boot_mode" = 'uefi' ]; then
+		grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=GRUB
+	else
+		grub-install --target=i386-pc /dev/"$drive_name"
+	fi
+
+}
+
+run_part2(){
+	set_time_zone
+	set_hardware_clock
+	set_locale
+	set_vconsole
+	configure_network
+	run_initramfs
+	change_root_password
+	install_boot_loader
+	exit
+}
+
+main(){
+	if [ "$1" = 'part1' ];then
+		run_part1 "$@"
+	elif [ "$1" = 'part2' ];then
+		run_part2 "$@"
+	else
+		print_error "Part not specified (e.g., ${NAME} part1)."
+	fi
 }
 
 main "$@"
