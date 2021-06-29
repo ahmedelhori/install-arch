@@ -145,7 +145,7 @@ mount_file_system(){
 }
 
 install_essential_packages(){
-	pacstrap /mnt "$package_list"
+	pacstrap /mnt $package_list
 }
 
 generate_fstab(){
@@ -154,10 +154,15 @@ generate_fstab(){
 
 copy_script_to_chroot(){
 	cp "$0" /mnt/root
+	cat <<-EOF > /mnt/root/env.sh
+	export keyboard_layout=${keyboard_layout}
+	export boot_mode=${boot_mode}
+	drive_name=${drive_name}
+	EOF
 }
 
 run_arch_chroot(){
-	arch-chroot /mnt /bin/bash -c "keyboard_layout=${keyboard_layout} boot_mode=${boot_mode} drive_name=${drive_name} bash ./${0} 'part2'"
+	arch-chroot /mnt /bin/bash -c 'bash /root/env.sh; bash /root/${0} part2'
 }
 
 finish_and_reboot(){
@@ -242,6 +247,7 @@ install_boot_loader(){
 		grub-install --target=i386-pc /dev/"$drive_name"
 	fi
 
+	grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 run_part2(){
