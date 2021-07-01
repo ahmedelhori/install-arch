@@ -56,7 +56,7 @@ set_keyboard_layout(){
 		loadkeys "$keyboard_layout"
 	else
 		print_error "Keyboard layout not found"
-		keyboard_layout=''
+		keyboard_layout=
 		set_keyboard_layout
 	fi
 }
@@ -90,7 +90,7 @@ get_drive_name(){
 
 	if ! [ -b /dev/"$drive_name" ]; then
 		print_error "Drive \"${drive_name}\" not found."
-		drive_name=''
+		drive_name=
 		get_drive_name
 	fi
 }
@@ -196,15 +196,19 @@ run_part1(){
 }
 
 set_time_zone(){
-	printf 'Enter the name of your Region (e.g., Europe): '
-	read timezone_region
-	printf 'Enter the timezone name of your city (e.g., Berlin): '
-	read timezone_city
+	while [ -z "$timezone_region" ] || [ -z "$timezone_city" ]; do
+		printf 'Enter the name of your Region (e.g., Europe): '
+		read timezone_region
+		printf 'Enter the timezone name of your city (e.g., Berlin): '
+		read timezone_city
+	done
 
 	if [ -f /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" ]; then
 		ln -sf /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" /etc/localtime
 	else
 		print_error "The specified Region, and/or city were not found."
+		timezone_region=
+		timezone_city=
 		set_time_zone
 	fi
 }
