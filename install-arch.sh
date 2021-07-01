@@ -7,14 +7,14 @@
 # ENV
 set -e
 NAME="$(basename "$0")"
-
+package_list='base linux linux-firmware vim networkmanager intel-ucode grub bash-completion'
 keyboard_layout=
 want_clean_drive=
 want_encryption=
 drive_name=
-package_list='base linux linux-firmware vim networkmanager intel-ucode grub'
 timezone_region=
 timezone_city=
+locale='en_US.UTF-8'
 hostname=
 
 print_error(){
@@ -25,8 +25,7 @@ print_error(){
 ask_yes_no(){
 	answer="$1"
 	question="$2"
-	while ! printf "$answer" | grep -q '^\([Yy]\(es\)\?\|[Nn]\(o\)\?\)$'
-	do
+	while ! printf "$answer" | grep -q '^\([Yy]\(es\)\?\|[Nn]\(o\)\?\)$'; do
 		printf "${question} [Y]es/[N]o: "
 		read answer
 	done
@@ -44,11 +43,13 @@ check_root(){
 }
 
 set_keyboard_layout(){
-	printf 'Enter the keyboard layout name, or press enter for the default layout (us): '
-	read keyboard_layout
-
 	if [ -z "$keyboard_layout" ]; then
-		keyboard_layout='us'
+		printf 'Enter the keyboard layout name, or press enter for the default layout (us): '
+		read keyboard_layout
+
+		if [ -z "$keyboard_layout" ]; then
+			keyboard_layout='us'
+		fi
 	fi
 
 	if ls /usr/share/kbd/keymaps/**/*"$keyboard_layout"*.map.gz >/dev/null 2>&1; then
@@ -81,19 +82,21 @@ encrypt_drive(){
 }
 
 get_drive_name(){
-	lsblk
-	printf "Enter the name of the desired drive to be affected (e.g., sda): "
-	read drive_name
+	while [ -z "$drive_name" ]; do
+		lsblk
+		printf "Enter the name of the desired drive to be affected (e.g., sda): "
+		read drive_name
+	done
+
+	if ! [ -b /dev/"$drive_name" ]; then
+		print_error "Drive \"${drive_name}\" not found."
+		drive_name=''
+		get_drive_name
+	fi
 }
 
 partion_disk(){
-	while [ -z "$drive_name" ]; do
-		get_drive_name
-		while ! [ -b /dev/"$drive_name" ]; do
-			print_error "Drive \"${drive_name}\" not found."
-			get_drive_name
-		done
-	done
+	get_drive_name
 
 	if ask_yes_no "$want_encryption" 'Do you want to encryption?'; then
 		if	ask_yes_no "$want_clean_drive" 'Do you want to clean the drive? This may take a long time.'; then
@@ -158,6 +161,10 @@ copy_script_to_chroot(){
 	export keyboard_layout=${keyboard_layout}
 	export boot_mode=${boot_mode}
 	export drive_name=${drive_name}
+	export timezone_region=${timezone_region}
+	export timezone_city=${timezone_city}
+	export locale=${locale}
+	export hostname=${hostname}
 	EOF
 }
 
@@ -194,7 +201,7 @@ set_time_zone(){
 	printf 'Enter the timezone name of your city (e.g., Berlin): '
 	read timezone_city
 
-	if ls /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" >/dev/null 2>&1; then
+	if [ -f /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" ]; then
 		ln -sf /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" /etc/localtime
 	else
 		print_error "The specified Region, and/or city were not found."
@@ -207,7 +214,6 @@ set_hardware_clock(){
 }
 
 set_locale(){
-	locale='en_US.UTF-8'
 	sed -i '0,/^\s*#\+\s*\('"$locale"'.*\)$/ s/^\s*#\+\s*\('"$locale"'.*\)$/\1/' /etc/locale.gen
 	locale-gen
 	echo "LANG=${locale}" > /etc/locale.conf
@@ -237,7 +243,9 @@ run_initramfs(){
 }
 
 change_root_password(){
+	set +e
 	passwd
+	set -e
 }
 
 install_boot_loader(){
@@ -257,8 +265,8 @@ run_part2(){
 	set_vconsole
 	configure_network
 	run_initramfs
-	change_root_password
 	install_boot_loader
+	change_root_password
 	exit
 }
 
