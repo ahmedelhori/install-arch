@@ -149,16 +149,16 @@ partion_disk(){
 format_partition(){
 	if ask_yes_no "$want_encryption"; then
 		mkfs.ext4 /dev/mapper/croot
+		mkfs.ext2 -L cswap "$swap_path" 1M
 	else
 		mkfs.ext4 "$root_path"
+		mkswap "$swap_path"
 	fi
 
 	if [ "$boot_mode" = 'uefi' ]; then
 		mkfs.fat -F32 "$boot_path"
-		mkswap "$swap_path"
 	else
 		mkfs.ext4 "$boot_path"
-		mkswap "$swap_path"
 	fi
 }
 
@@ -278,7 +278,7 @@ setup_initramfs(){
 	if ask_yes_no "$want_encryption"; then
 		root_uuid="$(blkid | grep "$root_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
 		swap_uuid="$(blkid | grep "$swap_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
-		echo "swap      ${swap_uuid}    /dev/urandom   swap,cipher=aes-xts-plain64,size=256" >> /etc/crypttab
+		echo "swap      UUID=${swap_uuid}    /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /etc/crypttab
 		if [ "$boot_mode" = 'uefi' ]; then
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 			sed -i 's/^\s*\(options.*\)$/\1 rd\.luks\.name=device-UUID='"$root_uuid"' root=\/dev\/mapper\/croot/' /boot/loader/entries/arch.conf
