@@ -98,8 +98,10 @@ clean_dirve(){
 }
 
 encrypt_drive(){
+	set +e
 	cryptsetup -y -v luksFormat "$root_path"
 	cryptsetup open "$root_path" croot
+	set -e
 }
 
 partion_disk(){
@@ -188,7 +190,7 @@ copy_script_to_chroot(){
 }
 
 run_arch_chroot(){
-	arch-chroot /mnt /bin/bash -c 'bash /root/env.sh; bash /root/script.sh part2'
+	arch-chroot /mnt /bin/bash -c 'source /root/env.sh; bash /root/script.sh part2'
 }
 
 finish_and_reboot(){
@@ -266,10 +268,10 @@ setup_initramfs(){
 		crypt_uuid="$(grep '\s\+/\s\+' /etc/fstab | sed -n 's/^\s*UUID=\(\S*\)\s\+.*$/\1/p')"
 		if [ "$boot_mode" = 'uefi' ]; then
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-			sed -i 's/^\s*options.*$/options rd\.luks\.name=device-UUID="'$crypt_uuid'" root=\/dev\/mapper\/croot/' >> /boot/loader/entries/arch.conf
+			sed -i 's/^\s*\(options.*\)$/\1 rd\.luks\.name=device-UUID="'$crypt_uuid'" root=\/dev\/mapper\/croot/' /boot/loader/entries/arch.conf
 		else
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-			sed -i 's/^\s*GRUB_CMDLINE_LINUX.*$/GRUB_CMDLINE_LINUX="cryptdevice=UUID="'$crypt_uuid'":croot root=\/dev\/mapper\/croot"/' >> /etc/default/grub
+			sed -i 's/^\s*GRUB_CMDLINE_LINUX="\(.*\)"$/GRUB_CMDLINE_LINUX="\1 cryptdevice=UUID="'$crypt_uuid'":croot root=\/dev\/mapper\/croot"/' /etc/default/grub
 		fi
 	fi
 
