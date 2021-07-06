@@ -14,7 +14,7 @@ want_encryption=
 drive_name=
 timezone_region=
 timezone_city=
-locale='en_US.UTF-8'
+locale=en_US.UTF-8
 hostname=
 
 print_error(){
@@ -73,14 +73,6 @@ update_system_clock(){
 	timedatectl set-ntp true >/dev/null 2>&1
 }
 
-clean_dirve(){
-	return
-}
-
-encrypt_drive(){
-	return
-}
-
 get_drive_name(){
 	while [ -z "$drive_name" ]; do
 		lsblk
@@ -95,14 +87,29 @@ get_drive_name(){
 	fi
 }
 
+get_partition_path(){
+	boot_path="$(blkid | grep "/dev/${drive_name}.*1" | sed -n 's/^\(\/dev\/'"$drive_name"'.*1\):\s\+.*$/\1/p')"
+	swap_path="$(blkid | grep "/dev/${drive_name}.*2" | sed -n 's/^\(\/dev\/'"$drive_name"'.*2\):\s\+.*$/\1/p')"
+	root_path="$(blkid | grep "/dev/${drive_name}.*3" | sed -n 's/^\(\/dev\/'"$drive_name"'.*3\):\s\+.*$/\1/p')"
+}
+
+clean_dirve(){
+	dd if=/dev/urandom > /dev/"$drive_name" bs=4096 status=progress
+}
+
+encrypt_drive(){
+	cryptsetup -y -v luksFormat "$root_path"
+	cryptsetup open "$root_path" croot
+}
+
 partion_disk(){
 	get_drive_name
 
-	if ask_yes_no "$want_encryption" 'Do you want to encryption?'; then
-		if	ask_yes_no "$want_clean_drive" 'Do you want to clean the drive? This may take a long time.'; then
-			clean_dirve
-		fi
-		encrypt_drive
+	if	ask_yes_no "$want_clean_drive" 'Do you want to clean the drive? This may take a long time.'; then
+		want_clean_drive=yes
+		clean_dirve
+	else
+		want_clean_drive=no
 	fi
 
 	if [ "$boot_mode" = 'uefi' ]; then
@@ -120,28 +127,39 @@ partion_disk(){
 			type=linux
 		EOF
 	fi
-}
 
-get_partition_path(){
-	boot_path="$(blkid | grep "/dev/${drive_name}.*1" | sed -n 's/^\(\/dev\/'"$drive_name"'.*1\):\s\+.*$/\1/p')"
-	swap_path="$(blkid | grep "/dev/${drive_name}.*2" | sed -n 's/^\(\/dev\/'"$drive_name"'.*2\):\s\+.*$/\1/p')"
-	root_path="$(blkid | grep "/dev/${drive_name}.*3" | sed -n 's/^\(\/dev\/'"$drive_name"'.*3\):\s\+.*$/\1/p')"
+	get_partition_path
+
+	if ask_yes_no "$want_encryption" 'Do you want encryption?'; then
+		want_encryption=yes
+		encrypt_drive
+	else
+		want_encryption=no
+	fi
 }
 
 format_partition(){
+	if ask_yes_no "$want_encryption"; then
+		mkfs.ext4 /dev/mapper/croot
+	else
+		mkfs.ext4 "$root_path"
+	fi
+
 	if [ "$boot_mode" = 'uefi' ]; then
 		mkfs.fat -F32 "$boot_path"
 		mkswap "$swap_path"
-		mkfs.ext4 "$root_path"
 	else
 		mkfs.ext4 "$boot_path"
 		mkswap "$swap_path"
-		mkfs.ext4 "$root_path"
 	fi
 }
 
 mount_file_system(){
-	mount "$root_path" /mnt
+	if ask_yes_no "$want_encryption"; then
+		mount /dev/mapper/croot /mnt
+	else
+		mount "$root_path" /mnt
+	fi
 	mkdir /mnt/boot
 	mount "$boot_path" /mnt/boot
 	swapon "$swap_path"
@@ -165,6 +183,7 @@ copy_script_to_chroot(){
 	export timezone_city=${timezone_city}
 	export locale=${locale}
 	export hostname=${hostname}
+	export want_encryption=${want_encryption}
 	EOF
 }
 
@@ -185,7 +204,6 @@ run_part1(){
 	verify_boot_mode
 	update_system_clock
 	partion_disk
-	get_partition_path
 	format_partition
 	mount_file_system
 	install_essential_packages
@@ -242,7 +260,19 @@ configure_network(){
 	EOF
 }
 
-run_initramfs(){
+setup_initramfs(){
+	if ask_yes_no "$want_encryption"; then
+		sed -i 's/^\s*#\+\s*\(swap.*\)$/\1/' /etc/crypttab
+		crypt_uuid="$(grep '\s\+/\s\+' /etc/fstab | sed -n 's/^\s*UUID=\(\S*\)\s\+.*$/\1/p')"
+		if [ "$boot_mode" = 'uefi' ]; then
+			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /mnt/etc/mkinitcpio.conf
+			sed -i 's/^\s*options.*$/options rd\.luks\.name=device-UUID="'$crypt_uuid'" root=\/dev\/mapper\/croot/' >> /boot/loader/entries/arch.conf
+		else
+			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /mnt/etc/mkinitcpio.conf
+			sed -i 's/^\s*options.*$/options cryptdevice=UUID="'$crypt_uuid'":croot root=\/dev\/mapper\/croot' >> /boot/loader/entries/arch.conf
+		fi
+	fi
+
 	mkinitcpio -P
 }
 
@@ -254,12 +284,12 @@ change_root_password(){
 
 install_boot_loader(){
 	if [ "$boot_mode" = 'uefi' ]; then
-		grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=GRUB
+		# grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=GRUB
+		bootctl install
 	else
 		grub-install --target=i386-pc /dev/"$drive_name"
+		grub-mkconfig -o /boot/grub/grub.cfg
 	fi
-
-	grub-mkconfig -o /boot/grub/grub.cfg
 }
 
 run_part2(){
@@ -268,7 +298,7 @@ run_part2(){
 	set_locale
 	set_vconsole
 	configure_network
-	run_initramfs
+	setup_initramfs
 	install_boot_loader
 	change_root_password
 	exit
