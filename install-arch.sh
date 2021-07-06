@@ -106,10 +106,10 @@ partion_disk(){
 	get_drive_name
 
 	if	ask_yes_no "$want_clean_drive" 'Do you want to clean the drive? This may take a long time.'; then
-		want_clean_drive=yes
+		want_clean_drive='yes'
 		clean_dirve
 	else
-		want_clean_drive=no
+		want_clean_drive='no'
 	fi
 
 	if [ "$boot_mode" = 'uefi' ]; then
@@ -131,10 +131,10 @@ partion_disk(){
 	get_partition_path
 
 	if ask_yes_no "$want_encryption" 'Do you want encryption?'; then
-		want_encryption=yes
+		want_encryption='yes'
 		encrypt_drive
 	else
-		want_encryption=no
+		want_encryption='no'
 	fi
 }
 
@@ -265,11 +265,11 @@ setup_initramfs(){
 		sed -i 's/^\s*#\+\s*\(swap.*\)$/\1/' /etc/crypttab
 		crypt_uuid="$(grep '\s\+/\s\+' /etc/fstab | sed -n 's/^\s*UUID=\(\S*\)\s\+.*$/\1/p')"
 		if [ "$boot_mode" = 'uefi' ]; then
-			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /mnt/etc/mkinitcpio.conf
+			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 			sed -i 's/^\s*options.*$/options rd\.luks\.name=device-UUID="'$crypt_uuid'" root=\/dev\/mapper\/croot/' >> /boot/loader/entries/arch.conf
 		else
-			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /mnt/etc/mkinitcpio.conf
-			sed -i 's/^\s*options.*$/options cryptdevice=UUID="'$crypt_uuid'":croot root=\/dev\/mapper\/croot' >> /boot/loader/entries/arch.conf
+			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+			sed -i 's/^\s*GRUB_CMDLINE_LINUX.*$/GRUB_CMDLINE_LINUX="cryptdevice=UUID="'$crypt_uuid'":croot root=\/dev\/mapper\/croot"/' >> /etc/default/grub
 		fi
 	fi
 
