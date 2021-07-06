@@ -94,13 +94,19 @@ get_partition_path(){
 }
 
 clean_dirve(){
+	set +e
 	dd if=/dev/urandom > /dev/"$drive_name" bs=4096 status=progress
+	set -e
 }
 
 encrypt_drive(){
 	set +e
-	while ! cryptsetup -y -v -q luksFormat "$root_path"; do :; done
-	cryptsetup open "$root_path" croot
+	cryptsetup -y -v -q luksFormat "$root_path"
+	if [ "$?" -eq 0 ]; then
+		cryptsetup open "$root_path" croot
+	else
+		encrypt_drive
+	fi
 	set -e
 }
 
@@ -161,10 +167,10 @@ mount_file_system(){
 		mount /dev/mapper/croot /mnt
 	else
 		mount "$root_path" /mnt
+		swapon "$swap_path"
 	fi
 	mkdir /mnt/boot
 	mount "$boot_path" /mnt/boot
-	swapon "$swap_path"
 }
 
 install_essential_packages(){
@@ -173,6 +179,9 @@ install_essential_packages(){
 
 generate_fstab(){
 	genfstab -U /mnt >> /mnt/etc/fstab
+	if ask_yes_no "$want_encryption"; then
+		echo '/dev/mapper/swap        none            swap            defaults   0   0' >> /mnt/etc/fstab
+	fi
 }
 
 copy_script_to_chroot(){
@@ -186,6 +195,8 @@ copy_script_to_chroot(){
 	export locale=${locale}
 	export hostname=${hostname}
 	export want_encryption=${want_encryption}
+	export boot_path=${boot_path}
+	export swap_path=${swap_path}
 	export root_path=${root_path}
 	EOF
 }
@@ -265,14 +276,15 @@ configure_network(){
 
 setup_initramfs(){
 	if ask_yes_no "$want_encryption"; then
-		sed -i 's/^\s*#\+\s*\(swap.*\)$/\1/' /etc/crypttab
-		root_uuid="$(blkid | grep "$root_path" | sed -n 's/^.*UUID="\(\S*\)".*$/\1/p')"
+		root_uuid="$(blkid | grep "$root_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
+		swap_uuid="$(blkid | grep "$swap_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
+		echo "swap      ${swap_uuid}    /dev/urandom   swap,cipher=aes-xts-plain64,size=256" >> /etc/crypttab
 		if [ "$boot_mode" = 'uefi' ]; then
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-			sed -i 's/^\s*\(options.*\)$/\1 rd\.luks\.name=device-UUID="'$root_uuid'" root=\/dev\/mapper\/croot/' /boot/loader/entries/arch.conf
+			sed -i 's/^\s*\(options.*\)$/\1 rd\.luks\.name=device-UUID='"$root_uuid"' root=\/dev\/mapper\/croot/' /boot/loader/entries/arch.conf
 		else
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-			sed -i 's/^\s*GRUB_CMDLINE_LINUX="\(.*\)"$/GRUB_CMDLINE_LINUX="\1 cryptdevice=UUID="'$root_uuid'":croot root=\/dev\/mapper\/croot"/' /etc/default/grub
+			sed -i 's/^\s*GRUB_CMDLINE_LINUX="\(.*\)"$/GRUB_CMDLINE_LINUX="cryptdevice=UUID='"$root_uuid"':croot root=\/dev\/mapper\/croot \1"/' /etc/default/grub
 		fi
 	fi
 
