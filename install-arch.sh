@@ -284,7 +284,7 @@ setup_initramfs(){
 			sed -i 's/^\s*\(options.*\)$/\1 rd\.luks\.name=device-UUID='"$root_uuid"' root=\/dev\/mapper\/croot/' /boot/loader/entries/arch.conf
 		else
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-			sed -i 's/^\s*GRUB_CMDLINE_LINUX="\(.*\)"$/GRUB_CMDLINE_LINUX="cryptdevice=UUID='"$root_uuid"':croot root=\/dev\/mapper\/croot \1"/' /etc/default/grub
+			sed -i 's/^\s*GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"$/GRUB_CMDLINE_LINUX_DEFAULT="\1 cryptdevice=UUID='"$root_uuid"':croot root=\/dev\/mapper\/croot"/' /etc/default/grub
 		fi
 	fi
 
