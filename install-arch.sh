@@ -316,9 +316,9 @@ run_part2(){
 	set_locale
 	set_vconsole
 	configure_network
-	setup_initramfs
 	install_boot_loader
 	configure_boot_loader
+	setup_initramfs
 	change_root_password
 	exit
 }
