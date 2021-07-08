@@ -275,36 +275,39 @@ configure_network(){
 }
 
 setup_initramfs(){
-	if ask_yes_no "$want_encryption"; then
-		root_uuid="$(blkid | grep "$root_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
-		swap_uuid="$(blkid | grep "$swap_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
-		echo "swap      UUID=${swap_uuid}    /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /etc/crypttab
-		if [ "$boot_mode" = 'uefi' ]; then
-			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-			sed -i 's/^\s*\(options.*\)$/\1 rd\.luks\.name=device-UUID='"$root_uuid"' root=\/dev\/mapper\/croot/' /boot/loader/entries/arch.conf
-		else
-			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-			sed -i 's/^\s*GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"$/GRUB_CMDLINE_LINUX_DEFAULT="\1 cryptdevice=UUID='"$root_uuid"':croot root=\/dev\/mapper\/croot"/' /etc/default/grub
-		fi
-	fi
-
 	mkinitcpio -P
-}
-
-change_root_password(){
-	set +e
-	passwd
-	set -e
 }
 
 install_boot_loader(){
 	if [ "$boot_mode" = 'uefi' ]; then
 		# grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=GRUB
 		bootctl install
+		cp /usr/share/systemd/bootctl/arch.conf /boot/loader/entries/
 	else
 		grub-install --target=i386-pc /dev/"$drive_name"
 		grub-mkconfig -o /boot/grub/grub.cfg
 	fi
+}
+
+configure_boot_loader(){
+	if ask_yes_no "$want_encryption"; then
+		root_uuid="$(blkid | grep "$root_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
+		swap_uuid="$(blkid | grep "$swap_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
+		echo "swap      UUID=${swap_uuid}    /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /etc/crypttab
+		if [ "$boot_mode" = 'uefi' ]; then
+			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+			sed -i 's/^\s*\(options\).*$/\1 rd\.luks\.name='"$root_uuid"'=croot root=\/dev\/mapper\/croot/' /boot/loader/entries/arch.conf
+		else
+			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+			sed -i 's/^\s*GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"$/GRUB_CMDLINE_LINUX_DEFAULT="\1 cryptdevice=UUID='"$root_uuid"':croot root=\/dev\/mapper\/croot"/' /etc/default/grub
+		fi
+	fi
+}
+
+change_root_password(){
+	set +e
+	passwd
+	set -e
 }
 
 run_part2(){
@@ -315,6 +318,7 @@ run_part2(){
 	configure_network
 	setup_initramfs
 	install_boot_loader
+	configure_boot_loader
 	change_root_password
 	exit
 }
