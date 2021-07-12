@@ -274,10 +274,6 @@ configure_network(){
 	EOF
 }
 
-setup_initramfs(){
-	mkinitcpio -P
-}
-
 install_boot_loader(){
 	if [ "$boot_mode" = 'uefi' ]; then
 		# grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=GRUB
@@ -300,8 +296,13 @@ configure_boot_loader(){
 		else
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 			sed -i 's/^\s*GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"$/GRUB_CMDLINE_LINUX_DEFAULT="\1 cryptdevice=UUID='"$root_uuid"':croot root=\/dev\/mapper\/croot"/' /etc/default/grub
+			grub-mkconfig -o /boot/grub/grub.cfg
 		fi
 	fi
+}
+
+setup_initramfs(){
+	mkinitcpio -P
 }
 
 change_root_password(){
