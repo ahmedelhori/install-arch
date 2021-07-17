@@ -25,12 +25,12 @@ print_error(){
 ask_yes_no(){
 	answer="$1"
 	question="$2"
-	while ! printf "$answer" | grep -q '^\([Yy]\(es\)\?\|[Nn]\(o\)\?\)$'; do
-		printf "${question} [Y]es/[N]o: "
+	while ! printf '%s' "$answer" | grep -q '^\([Yy]\(es\)\?\|[Nn]\(o\)\?\)$'; do
+		printf '%s' "${question} [Y]es/[N]o: "
 		read -r answer
 	done
 
-	if printf "$answer" | grep -q '^[Nn]\(o\)\?$'; then
+	if printf '%s' "$answer" | grep -q '^[Nn]\(o\)\?$'; then
 		return 1
 	fi
 }
@@ -76,7 +76,7 @@ update_system_clock(){
 get_drive_name(){
 	while [ -z "$drive_name" ]; do
 		lsblk
-		printf "Enter the name of the desired drive to be affected (e.g., sda): "
+		printf 'Enter the name of the desired drive to be affected (e.g., sda): '
 		read -r drive_name
 	done
 
