@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # Author:       Ahmed Elhori <dev@elhori.com>
 # License:      GNU GPLv3
@@ -27,7 +27,7 @@ ask_yes_no(){
 	question="$2"
 	while ! printf "$answer" | grep -q '^\([Yy]\(es\)\?\|[Nn]\(o\)\?\)$'; do
 		printf "${question} [Y]es/[N]o: "
-		read answer
+		read -r answer
 	done
 
 	if printf "$answer" | grep -q '^[Nn]\(o\)\?$'; then
@@ -45,7 +45,7 @@ check_root(){
 set_keyboard_layout(){
 	if [ -z "$keyboard_layout" ]; then
 		printf 'Enter the keyboard layout name, or press enter for the default layout (us): '
-		read keyboard_layout
+		read -r keyboard_layout
 
 		if [ -z "$keyboard_layout" ]; then
 			keyboard_layout='us'
@@ -77,7 +77,7 @@ get_drive_name(){
 	while [ -z "$drive_name" ]; do
 		lsblk
 		printf "Enter the name of the desired drive to be affected (e.g., sda): "
-		read drive_name
+		read -r drive_name
 	done
 
 	if ! [ -b /dev/"$drive_name" ]; then
@@ -230,9 +230,9 @@ run_part1(){
 set_time_zone(){
 	while [ -z "$timezone_region" ] || [ -z "$timezone_city" ]; do
 		printf 'Enter the name of your Region (e.g., Europe): '
-		read timezone_region
+		read -r timezone_region
 		printf 'Enter the timezone name of your city (e.g., Berlin): '
-		read timezone_city
+		read -r timezone_city
 	done
 
 	if [ -f /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" ]; then
@@ -262,7 +262,7 @@ set_vconsole(){
 configure_network(){
 	while [ -z "$hostname" ]; do
 		printf 'Enter hostname: '
-		read hostname
+		read -r hostname
 	done
 
 	echo "$hostname" > /etc/hostname
