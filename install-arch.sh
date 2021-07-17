@@ -93,7 +93,7 @@ get_partition_path(){
 	root_path="$(blkid | grep "/dev/${drive_name}.*3" | sed -n 's/^\(\/dev\/'"$drive_name"'.*3\):\s\+.*$/\1/p')"
 }
 
-clean_dirve(){
+clean_drive(){
 	set +e
 	dd if=/dev/urandom > /dev/"$drive_name" bs=4096 status=progress
 	set -e
@@ -115,7 +115,7 @@ partion_disk(){
 
 	if	ask_yes_no "$want_clean_drive" 'Do you want to clean the drive? This may take a long time.'; then
 		want_clean_drive='yes'
-		clean_dirve
+		clean_drive
 	else
 		want_clean_drive='no'
 	fi
