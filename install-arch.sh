@@ -299,6 +299,7 @@ setup_initramfs(){
 
 change_root_password(){
 	set +e
+	echo 'Change root password..'
 	passwd
 	set -e
 }
