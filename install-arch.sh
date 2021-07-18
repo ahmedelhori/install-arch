@@ -199,10 +199,11 @@ copy_script_to_chroot(){
 	export swap_path=${swap_path}
 	export root_path=${root_path}
 	EOF
+	chmod 700 /mnt/root/script.sh
 }
 
 run_arch_chroot(){
-	arch-chroot /mnt /bin/bash -c 'source /root/env.sh; bash /root/script.sh part2'
+	arch-chroot /mnt /bin/sh -c '/root/script.sh 'part2''
 }
 
 finish_and_reboot(){
@@ -210,6 +211,10 @@ finish_and_reboot(){
 	echo 'Rebooting in 5Sec'
 	sleep 5
 	reboot
+}
+
+source_env(){
+	. /root/env.sh
 }
 
 set_time_zone(){
@@ -297,6 +302,7 @@ change_root_password(){
 }
 
 run_part2(){
+	source_env
 	set_time_zone
 	set_hardware_clock
 	set_locale
