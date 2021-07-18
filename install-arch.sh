@@ -212,21 +212,6 @@ finish_and_reboot(){
 	reboot
 }
 
-run_part1(){
-	check_root
-	set_keyboard_layout
-	verify_boot_mode
-	update_system_clock
-	partion_disk
-	format_partition
-	mount_file_system
-	install_essential_packages
-	generate_fstab
-	copy_script_to_chroot
-	run_arch_chroot
-	finish_and_reboot
-}
-
 set_time_zone(){
 	while [ -z "$timezone_region" ] || [ -z "$timezone_city" ]; do
 		printf 'Enter the name of your Region (e.g., Europe): '
@@ -322,6 +307,21 @@ run_part2(){
 	setup_initramfs
 	change_root_password
 	exit
+}
+
+run_part1(){
+	check_root
+	set_keyboard_layout
+	verify_boot_mode
+	update_system_clock
+	partion_disk
+	format_partition
+	mount_file_system
+	install_essential_packages
+	generate_fstab
+	copy_script_to_chroot
+	run_arch_chroot
+	finish_and_reboot
 }
 
 main(){
