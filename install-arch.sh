@@ -269,6 +269,8 @@ install_boot_loader(){
 		# grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=GRUB
 		bootctl install
 		cp /usr/share/systemd/bootctl/arch.conf /boot/loader/entries/
+		printf 'default arch.conf' > /boot/loader/loader.conf
+		sed -i 's/^\s*options.*$/options root=UUID='"$root_uuid"' rw/' /boot/loader/entries/arch.conf
 	else
 		grub-install --target=i386-pc /dev/"$drive_name"
 		grub-mkconfig -o /boot/grub/grub.cfg
@@ -282,7 +284,7 @@ configure_boot_loader(){
 		echo "swap      UUID=${swap_uuid}    /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /etc/crypttab
 		if [ "$boot_mode" = 'uefi' ]; then
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
-			sed -i 's/^\s*\(options\).*$/\1 rd\.luks\.name='"$root_uuid"'=croot root=\/dev\/mapper\/croot/' /boot/loader/entries/arch.conf
+			sed -i 's/^\s*options.*$/options rd\.luks\.name='"$root_uuid"'=croot root=\/dev\/mapper\/croot/' /boot/loader/entries/arch.conf
 		else
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base udev autodetect keyboard keymap consolefont modconf block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 			sed -i 's/^\s*GRUB_CMDLINE_LINUX_DEFAULT="\(.*\)"$/GRUB_CMDLINE_LINUX_DEFAULT="\1 cryptdevice=UUID='"$root_uuid"':croot root=\/dev\/mapper\/croot"/' /etc/default/grub
