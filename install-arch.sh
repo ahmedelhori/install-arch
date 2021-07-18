@@ -93,6 +93,11 @@ get_partition_path(){
 	root_path="$(blkid | grep "/dev/${drive_name}.*3" | sed -n 's/^\(\/dev\/'"$drive_name"'.*3\):\s\+.*$/\1/p')"
 }
 
+get_partition_uuid(){
+	root_uuid="$(blkid | grep "$root_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
+	swap_uuid="$(blkid | grep "$swap_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
+}
+
 clean_drive(){
 	set +e
 	dd if=/dev/urandom > /dev/"$drive_name" bs=4096 status=progress
@@ -195,9 +200,6 @@ copy_script_to_chroot(){
 	export locale=${locale}
 	export hostname=${hostname}
 	export want_encryption=${want_encryption}
-	export boot_path=${boot_path}
-	export swap_path=${swap_path}
-	export root_path=${root_path}
 	EOF
 	chmod 700 /mnt/root/script.sh
 }
@@ -269,7 +271,7 @@ install_boot_loader(){
 		# grub-install --target=x86_64-efi --efi-directory=/boot/EFI --bootloader-id=GRUB
 		bootctl install
 		cp /usr/share/systemd/bootctl/arch.conf /boot/loader/entries/
-		printf 'default arch.conf' > /boot/loader/loader.conf
+		echo 'default arch.conf' > /boot/loader/loader.conf
 		sed -i 's/^\s*options.*$/options root=UUID='"$root_uuid"' rw/' /boot/loader/entries/arch.conf
 	else
 		grub-install --target=i386-pc /dev/"$drive_name"
@@ -279,8 +281,6 @@ install_boot_loader(){
 
 configure_boot_loader(){
 	if ask_yes_no "$want_encryption"; then
-		root_uuid="$(blkid | grep "$root_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
-		swap_uuid="$(blkid | grep "$swap_path" | sed -n 's/^.*\s\+UUID="\(\S*\)".*$/\1/p')"
 		echo "swap      UUID=${swap_uuid}    /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /etc/crypttab
 		if [ "$boot_mode" = 'uefi' ]; then
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
@@ -310,6 +310,8 @@ run_part2(){
 	set_locale
 	set_vconsole
 	configure_network
+	get_partition_path
+	get_partition_uuid
 	install_boot_loader
 	configure_boot_loader
 	setup_initramfs
