@@ -7,7 +7,7 @@
 # ENV
 set -e
 NAME="$(basename "$0")"
-package_list='base linux linux-firmware vim networkmanager intel-ucode grub bash-completion'
+package_list='base linux linux-firmware vim networkmanager grub bash-completion'
 keyboard_layout=
 want_clean_drive=
 want_encryption=
@@ -16,6 +16,10 @@ timezone_region=
 timezone_city=
 locale=en_US.UTF-8
 hostname=
+
+final_commands(){
+	# Place your final commands here.
+}
 
 print_error(){
 	message="$1"
@@ -317,6 +321,7 @@ run_part2(){
 	configure_boot_loader
 	setup_initramfs
 	change_root_password
+	set +e; final_commands; set-e
 	exit
 }
 
