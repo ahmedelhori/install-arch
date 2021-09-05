@@ -321,7 +321,7 @@ run_part2(){
 	configure_boot_loader
 	setup_initramfs
 	change_root_password
-	set +e; final_commands; set-e
+	set +e; final_commands; set -e
 	exit
 }
 

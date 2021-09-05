@@ -5,13 +5,15 @@ A script to automate arch linux installation
 It's not fool proof! yet...
 
 # Usage
+## After you've booted into the Arch Linux live environment:
+
 You could either run this script directly with the following command:
 ```
 sh install-arch.sh
 ```
 Or fill the Empty variable fields before running the script.
 
-# Example:
+# Example
 `install-arch.sh`
 ```
 ..
