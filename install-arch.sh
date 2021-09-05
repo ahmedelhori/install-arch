@@ -19,6 +19,13 @@ hostname=
 
 final_commands(){
 	# Place your final commands here.
+	# For Example: KDE environment
+	#
+	#pacman -S xf86-video-intel xorg xorg-xinit plasma lightdm lightdm-gtk-greeter
+	#systemctl enable lightdm
+	#
+	# Don't leave the function empty!
+	echo 'Final commands..' 
 }
 
 print_error(){
