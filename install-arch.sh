@@ -148,9 +148,9 @@ partion_disk(){
 		read -r boot_size
 	done
 
-	while ! [ ! "$swap_size" -ge 0 ] 2> /dev/null; do
+	while ! [ "$swap_size" -ge 0 ] 2> /dev/null; do
 		printf 'Enter swap partition size in MiB (e.g. 4096):'
-		read -r boot_size
+		read -r swap_size
 	done
 
 	if [ "$boot_mode" = 'uefi' ]; then
