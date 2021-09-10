@@ -12,12 +12,15 @@ keyboard_layout=
 want_clean_drive=
 want_encryption=
 drive_name=
+boot_size=
+swap_size=
 timezone_region=
 timezone_city=
 locale=en_US.UTF-8
 hostname=
 
 final_commands(){
+	echo 'Final commands..'
 	# Place your final commands here.
 	# For Example: KDE environment
 	#
@@ -25,7 +28,6 @@ final_commands(){
 	#systemctl enable lightdm
 	#
 	# Don't leave the function empty!
-	echo 'Final commands..' 
 }
 
 print_error(){
@@ -221,6 +223,8 @@ copy_script_to_chroot(){
 	export keyboard_layout=${keyboard_layout}
 	export boot_mode=${boot_mode}
 	export drive_name=${drive_name}
+	export boot_size=${boot_size}
+	export swap_size=${swap_size}
 	export timezone_region=${timezone_region}
 	export timezone_city=${timezone_city}
 	export locale=${locale}
