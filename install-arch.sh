@@ -141,18 +141,28 @@ partion_disk(){
 		want_clean_drive='no'
 	fi
 
+	while ! [ "$boot_size" -ge 0 ] 2> /dev/null; do
+		printf 'Enter boot partition size in MiB (e.g. 512):'
+		read -r boot_size
+	done
+
+	while ! [ ! "$swap_size" -ge 0 ] 2> /dev/null; do
+		printf 'Enter swap partition size in MiB (e.g. 4096):'
+		read -r boot_size
+	done
+
 	if [ "$boot_mode" = 'uefi' ]; then
 		sfdisk -W always /dev/"$drive_name" <<- EOF
 			label: gpt
-			size=512MiB, type=uefi, bootable
-			size=4GiB, type=swap
+			size="$boot_size"MiB, type=uefi, bootable
+			size="$swap_size"MiB, type=swap
 			type=linux
 		EOF
 	else
 		sfdisk -W always /dev/"$drive_name" <<- EOF
 			label: dos
-			size=512MiB, type=linux, bootable
-			size=4GiB, type=swap
+			size="$boot_size"MiB, type=linux, bootable
+			size="$swap_size"MiB, type=swap
 			type=linux
 		EOF
 	fi
