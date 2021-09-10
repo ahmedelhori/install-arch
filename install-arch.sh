@@ -156,15 +156,15 @@ partion_disk(){
 	if [ "$boot_mode" = 'uefi' ]; then
 		sfdisk -W always /dev/"$drive_name" <<- EOF
 			label: gpt
-			size="$boot_size"MiB, type=uefi, bootable
+			size=${boot_size}MiB, type=uefi, bootable
 			size="$swap_size"MiB, type=swap
 			type=linux
 		EOF
 	else
 		sfdisk -W always /dev/"$drive_name" <<- EOF
 			label: dos
-			size="$boot_size"MiB, type=linux, bootable
-			size="$swap_size"MiB, type=swap
+			size=${boot_size}MiB, type=linux, bootable
+			size=${swap_size}MiB, type=swap
 			type=linux
 		EOF
 	fi
