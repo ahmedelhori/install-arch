@@ -85,11 +85,16 @@ update_system_clock(){
 }
 
 get_drive_name(){
-	while [ -z "$drive_name" ]; do
-		lsblk
-		printf 'Enter the name of the desired drive to be affected (e.g., sda): '
-		read -r drive_name
-	done
+	drive_list="$(lsblk -d | tail +2 | sed -n 's/^\(\S*\).*$/\1/p' | nl)"
+	if [ -z "$drive_name" ]; then
+		drive_number=
+		while [ -z "$drive_number" ]; do
+			printf "$drive_list"
+			printf 'Enter the number of the desired drive to be affected: '
+			read -r drive_number
+			drive_name="$(printf "$drive_list" | sed -n 's/^\s*'"$drive_number"'\s*\(.*\)$/\1/p')"
+		done
+	fi
 
 	if ! [ -b /dev/"$drive_name" ]; then
 		print_error "Drive \"${drive_name}\" not found."
