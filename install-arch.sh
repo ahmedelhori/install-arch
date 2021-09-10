@@ -91,7 +91,7 @@ get_drive_name(){
 	if [ -z "$drive_name" ]; then
 		drive_number=
 		while [ -z "$drive_number" ]; do
-			printf "$drive_list"
+			printf "$drive_list\n"
 			printf 'Enter the number of the desired drive to be affected: '
 			read -r drive_number
 			drive_name="$(printf "$drive_list" | sed -n 's/^\s*'"$drive_number"'\s*\(.*\)$/\1/p')"
