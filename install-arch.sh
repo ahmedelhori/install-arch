@@ -5,34 +5,26 @@
 # Description:  Arch install script
 
 # ENV
-set -e
-NAME="$(basename "$0")"
-package_list='base linux linux-firmware vim networkmanager grub bash-completion'
-keyboard_layout=
-want_clean_drive=
-want_encryption=
-drive_name=
-boot_size=
-swap_size=
-timezone_region=
-timezone_city=
-locale=en_US.UTF-8
-hostname=
+KEYBOARD_LAYOUT=
+WANT_CLEAN_DRIVE=
+WANT_ENCRYPTION=
+DRIVE_NAME=
+BOOT_SIZE=
+SWAP_SIZE=
+TIMEZONE_REGION=
+TIMEZONE_CITY=
+LOCALE='en_US.UTF-8'
+HOSTNAME=
+EXTRA_PACKAGES=
 
-final_commands(){
-	echo 'Final commands..'
-	# Place your final commands here.
-	# For Example: KDE environment
-	#
-	#pacman -S xf86-video-intel xorg xorg-xinit plasma lightdm lightdm-gtk-greeter
-	#systemctl enable lightdm
-	#
-	# Don't leave the function empty!
-}
+# Configs
+set -e
+SCRIPT_NAME="$(basename "$0")"
+PACKAGE_LIST='base linux linux-firmware vim networkmanager grub bash-completion'
 
 print_error(){
 	message="$1"
-	echo "${NAME} - Error: ${message}" >&2
+	echo "${SCRIPT_NAME} - Error: ${message}" >&2
 }
 
 ask_yes_no(){
@@ -56,20 +48,20 @@ check_root(){
 }
 
 set_keyboard_layout(){
-	if [ -z "$keyboard_layout" ]; then
+	if [ -z "$KEYBOARD_LAYOUT" ]; then
 		printf 'Enter the keyboard layout name, or press enter for the default layout (us): '
-		read -r keyboard_layout
-
-		if [ -z "$keyboard_layout" ]; then
-			keyboard_layout='us'
-		fi
+		read -r KEYBOARD_LAYOUT
 	fi
 
-	if ls /usr/share/kbd/keymaps/**/*"$keyboard_layout"*.map.gz >/dev/null 2>&1; then
-		loadkeys "$keyboard_layout"
+	if [ -z "$KEYBOARD_LAYOUT" ]; then
+		KEYBOARD_LAYOUT='us'
+	fi
+
+	if ls /usr/share/kbd/keymaps/**/*"$KEYBOARD_LAYOUT"*.map.gz >/dev/null 2>&1; then
+		loadkeys "$KEYBOARD_LAYOUT"
 	else
 		print_error "Keyboard layout not found"
-		keyboard_layout=
+		KEYBOARD_LAYOUT=
 		set_keyboard_layout
 	fi
 }
@@ -88,27 +80,27 @@ update_system_clock(){
 
 get_drive_name(){
 	drive_list="$(lsblk -d | tail +2 | sed -n 's/^\(\S*\).*$/\1/p' | nl)"
-	if [ -z "$drive_name" ]; then
+	if [ -z "$DRIVE_NAME" ]; then
 		drive_number=
 		while [ -z "$drive_number" ]; do
 			printf "$drive_list\n"
 			printf 'Enter the number of the desired drive to be affected: '
 			read -r drive_number
-			drive_name="$(printf "$drive_list" | sed -n 's/^\s*'"$drive_number"'\s*\(.*\)$/\1/p')"
+			DRIVE_NAME="$(printf "$drive_list" | sed -n 's/^\s*'"$drive_number"'\s*\(.*\)$/\1/p')"
 		done
 	fi
 
-	if ! [ -b /dev/"$drive_name" ]; then
-		print_error "Drive \"${drive_name}\" not found."
-		drive_name=
+	if ! [ -b /dev/"$DRIVE_NAME" ]; then
+		print_error "Drive \"${DRIVE_NAME}\" not found."
+		DRIVE_NAME=
 		get_drive_name
 	fi
 }
 
 get_partition_path(){
-	boot_path="$(blkid | grep "/dev/${drive_name}.*1" | sed -n 's/^\(\/dev\/'"$drive_name"'.*1\):\s\+.*$/\1/p')"
-	swap_path="$(blkid | grep "/dev/${drive_name}.*2" | sed -n 's/^\(\/dev\/'"$drive_name"'.*2\):\s\+.*$/\1/p')"
-	root_path="$(blkid | grep "/dev/${drive_name}.*3" | sed -n 's/^\(\/dev\/'"$drive_name"'.*3\):\s\+.*$/\1/p')"
+	boot_path="$(blkid | grep "/dev/${DRIVE_NAME}.*1" | sed -n 's/^\(\/dev\/'"$DRIVE_NAME"'.*1\):\s\+.*$/\1/p')"
+	swap_path="$(blkid | grep "/dev/${DRIVE_NAME}.*2" | sed -n 's/^\(\/dev\/'"$DRIVE_NAME"'.*2\):\s\+.*$/\1/p')"
+	root_path="$(blkid | grep "/dev/${DRIVE_NAME}.*3" | sed -n 's/^\(\/dev\/'"$DRIVE_NAME"'.*3\):\s\+.*$/\1/p')"
 }
 
 get_partition_uuid(){
@@ -118,7 +110,7 @@ get_partition_uuid(){
 
 clean_drive(){
 	set +e
-	dd if=/dev/urandom > /dev/"$drive_name" bs=4096 status=progress
+	dd if=/dev/urandom > /dev/"$DRIVE_NAME" bs=4096 status=progress
 	set -e
 }
 
@@ -136,51 +128,51 @@ encrypt_drive(){
 partion_disk(){
 	get_drive_name
 
-	if	ask_yes_no "$want_clean_drive" 'Do you want to clean the drive? This may take a long time.'; then
-		want_clean_drive='yes'
+	if	ask_yes_no "$WANT_CLEAN_DRIVE" 'Do you want to clean the drive? This may take a long time.'; then
+		WANT_CLEAN_DRIVE='yes'
 		clean_drive
 	else
-		want_clean_drive='no'
+		WANT_CLEAN_DRIVE='no'
 	fi
 
-	while ! [ "$boot_size" -ge 0 ] 2> /dev/null; do
+	while ! [ "$BOOT_SIZE" -ge 0 ] 2> /dev/null; do
 		printf 'Enter boot partition size in MiB (e.g. 512):'
-		read -r boot_size
+		read -r BOOT_SIZE
 	done
 
-	while ! [ "$swap_size" -ge 0 ] 2> /dev/null; do
+	while ! [ "$SWAP_SIZE" -ge 0 ] 2> /dev/null; do
 		printf 'Enter swap partition size in MiB (e.g. 4096):'
-		read -r swap_size
+		read -r SWAP_SIZE
 	done
 
 	if [ "$boot_mode" = 'uefi' ]; then
-		sfdisk -W always /dev/"$drive_name" <<- EOF
+		sfdisk -W always /dev/"$DRIVE_NAME" <<- EOF
 			label: gpt
-			size=${boot_size}MiB, type=uefi, bootable
-			size="$swap_size"MiB, type=swap
+			size=${BOOT_SIZE}MiB, type=uefi, bootable
+			size="$SWAP_SIZE"MiB, type=swap
 			type=linux
 		EOF
 	else
-		sfdisk -W always /dev/"$drive_name" <<- EOF
+		sfdisk -W always /dev/"$DRIVE_NAME" <<- EOF
 			label: dos
-			size=${boot_size}MiB, type=linux, bootable
-			size=${swap_size}MiB, type=swap
+			size=${BOOT_SIZE}MiB, type=linux, bootable
+			size=${SWAP_SIZE}MiB, type=swap
 			type=linux
 		EOF
 	fi
 
 	get_partition_path
 
-	if ask_yes_no "$want_encryption" 'Do you want encryption?'; then
-		want_encryption='yes'
+	if ask_yes_no "$WANT_ENCRYPTION" 'Do you want encryption?'; then
+		WANT_ENCRYPTION='yes'
 		encrypt_drive
 	else
-		want_encryption='no'
+		WANT_ENCRYPTION='no'
 	fi
 }
 
 format_partition(){
-	if ask_yes_no "$want_encryption"; then
+	if ask_yes_no "$WANT_ENCRYPTION"; then
 		mkfs.ext4 /dev/mapper/croot
 		mkfs.ext2 -L cswap "$swap_path" 1M
 	else
@@ -196,7 +188,7 @@ format_partition(){
 }
 
 mount_file_system(){
-	if ask_yes_no "$want_encryption"; then
+	if ask_yes_no "$WANT_ENCRYPTION"; then
 		mount /dev/mapper/croot /mnt
 	else
 		mount "$root_path" /mnt
@@ -207,12 +199,12 @@ mount_file_system(){
 }
 
 install_essential_packages(){
-	pacstrap /mnt $package_list
+	pacstrap /mnt $PACKAGE_LIST
 }
 
 generate_fstab(){
 	genfstab -U /mnt >> /mnt/etc/fstab
-	if ask_yes_no "$want_encryption"; then
+	if ask_yes_no "$WANT_ENCRYPTION"; then
 		echo '/dev/mapper/swap        none            swap            defaults   0   0' >> /mnt/etc/fstab
 	fi
 }
@@ -220,16 +212,16 @@ generate_fstab(){
 copy_script_to_chroot(){
 	cp "$0" /mnt/root/script.sh
 	cat <<-EOF > /mnt/root/env.sh
-	export keyboard_layout=${keyboard_layout}
+	export KEYBOARD_LAYOUT=${KEYBOARD_LAYOUT}
 	export boot_mode=${boot_mode}
-	export drive_name=${drive_name}
-	export boot_size=${boot_size}
-	export swap_size=${swap_size}
-	export timezone_region=${timezone_region}
-	export timezone_city=${timezone_city}
-	export locale=${locale}
-	export hostname=${hostname}
-	export want_encryption=${want_encryption}
+	export DRIVE_NAME=${DRIVE_NAME}
+	export BOOT_SIZE=${BOOT_SIZE}
+	export SWAP_SIZE=${SWAP_SIZE}
+	export TIMEZONE_REGION=${TIMEZONE_REGION}
+	export TIMEZONE_CITY=${TIMEZONE_CITY}
+	export LOCALE=${LOCALE}
+	export HOSTNAME=${HOSTNAME}
+	export WANT_ENCRYPTION=${WANT_ENCRYPTION}
 	EOF
 	chmod 700 /mnt/root/script.sh
 }
@@ -250,19 +242,19 @@ source_env(){
 }
 
 set_time_zone(){
-	while [ -z "$timezone_region" ] || [ -z "$timezone_city" ]; do
+	while [ -z "$TIMEZONE_REGION" ] || [ -z "$TIMEZONE_CITY" ]; do
 		printf 'Enter the name of your Region (e.g., Europe): '
-		read -r timezone_region
+		read -r TIMEZONE_REGION
 		printf 'Enter the timezone name of your city (e.g., Berlin): '
-		read -r timezone_city
+		read -r TIMEZONE_CITY
 	done
 
-	if [ -f /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" ]; then
-		ln -sf /usr/share/zoneinfo/"$timezone_region"/"$timezone_city" /etc/localtime
+	if [ -f /usr/share/zoneinfo/"$TIMEZONE_REGION"/"$TIMEZONE_CITY" ]; then
+		ln -sf /usr/share/zoneinfo/"$TIMEZONE_REGION"/"$TIMEZONE_CITY" /etc/localtime
 	else
 		print_error "The specified Region, and/or city were not found."
-		timezone_region=
-		timezone_city=
+		TIMEZONE_REGION=
+		TIMEZONE_CITY=
 		set_time_zone
 	fi
 }
@@ -272,27 +264,27 @@ set_hardware_clock(){
 }
 
 set_locale(){
-	sed -i '0,/^\s*#\+\s*\('"$locale"'.*\)$/ s/^\s*#\+\s*\('"$locale"'.*\)$/\1/' /etc/locale.gen
+	sed -i '0,/^\s*#\+\s*\('"$LOCALE"'.*\)$/ s/^\s*#\+\s*\('"$LOCALE"'.*\)$/\1/' /etc/locale.gen
 	locale-gen
-	echo "LANG=${locale}" > /etc/locale.conf
+	echo "LANG=${LOCALE}" > /etc/locale.conf
 }
 
 set_vconsole(){
-	echo "KEYMAP=${keyboard_layout}" > /etc/vconsole.conf
+	echo "KEYMAP=${KEYBOARD_LAYOUT}" > /etc/vconsole.conf
 }
 
 configure_network(){
-	while [ -z "$hostname" ]; do
+	while [ -z "$HOSTNAME" ]; do
 		printf 'Enter hostname: '
-		read -r hostname
+		read -r HOSTNAME
 	done
 
-	echo "$hostname" > /etc/hostname
+	echo "$HOSTNAME" > /etc/hostname
 
 	cat <<- EOF > /etc/hosts
 	127.0.0.1	localhost
 	::1		localhost
-	127.0.1.1	"${hostname}".localdomain	"${hostname}"
+	127.0.1.1	"${HOSTNAME}".localdomain	"${HOSTNAME}"
 	EOF
 }
 
@@ -304,13 +296,13 @@ install_boot_loader(){
 		echo 'default arch.conf' > /boot/loader/loader.conf
 		sed -i 's/^\s*options.*$/options root=UUID='"$root_uuid"' rw/' /boot/loader/entries/arch.conf
 	else
-		grub-install --target=i386-pc /dev/"$drive_name"
+		grub-install --target=i386-pc /dev/"$DRIVE_NAME"
 		grub-mkconfig -o /boot/grub/grub.cfg
 	fi
 }
 
 configure_boot_loader(){
-	if ask_yes_no "$want_encryption"; then
+	if ask_yes_no "$WANT_ENCRYPTION"; then
 		echo "swap      UUID=${swap_uuid}    /dev/urandom swap,offset=2048,cipher=aes-xts-plain64,size=512" >> /etc/crypttab
 		if [ "$boot_mode" = 'uefi' ]; then
 			sed -i 's/^\s*HOOKS=.*$/HOOKS=(base systemd autodetect keyboard sd-vconsole modconf block sd-encrypt filesystems fsck)/' /etc/mkinitcpio.conf
