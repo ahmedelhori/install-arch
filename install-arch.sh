@@ -136,12 +136,12 @@ partion_disk(){
 	fi
 
 	while ! [ "$BOOT_SIZE" -ge 0 ] 2> /dev/null; do
-		printf 'Enter boot partition size in MiB (e.g. 512):'
+		printf 'Enter boot partition size in MiB (e.g. 512): '
 		read -r BOOT_SIZE
 	done
 
 	while ! [ "$SWAP_SIZE" -ge 0 ] 2> /dev/null; do
-		printf 'Enter swap partition size in MiB (e.g. 4096):'
+		printf 'Enter swap partition size in MiB (e.g. 4096): '
 		read -r SWAP_SIZE
 	done
 
@@ -149,7 +149,7 @@ partion_disk(){
 		sfdisk -W always /dev/"$DRIVE_NAME" <<- EOF
 			label: gpt
 			size=${BOOT_SIZE}MiB, type=uefi, bootable
-			size="$SWAP_SIZE"MiB, type=swap
+			size=${SWAP_SIZE}MiB, type=swap
 			type=linux
 		EOF
 	else
