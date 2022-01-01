@@ -193,6 +193,8 @@ set_keyboard_layout(){
 
 unmount_mnt(){
 	set +e
+	umount -f -R /mnt/boot
+	umount -f -R /mnt/dev
 	umount -f -R /mnt
 	cryptsetup close croot
 	set -e
