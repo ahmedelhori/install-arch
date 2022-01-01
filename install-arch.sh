@@ -55,6 +55,7 @@ get_user_input(){
 	get_time_zone
 	get_locale
 	get_hostname
+	get_encryption_password
 }
 
 get_drive_name(){
@@ -161,6 +162,27 @@ get_hostname(){
 	done
 }
 
+get_encryption_password(){
+	if ! ask_yes_no "$WANT_ENCRYPTION"; then
+		return
+	fi
+
+	password=
+	printf 'Enter your desired encryption password: \n'
+	read -s password
+
+	password_repeat=
+	printf 'Repeat your encryption password: \n'
+	read -s password_repeat
+
+	if [ "$password" != "$password_repeat" ]; then
+		print_error "Passwords don't match"
+		get_encryption_password
+	else
+		printf '%s' "$password" > /dev/shm/encryption_password
+	fi
+}
+
 update_system_clock(){
 	timedatectl set-ntp true >/dev/null 2>&1
 }
@@ -171,7 +193,8 @@ set_keyboard_layout(){
 
 unmount_mnt(){
 	set +e
-	umount -R /mnt
+	umount -f -R /mnt
+	cryptsetup close croot
 	set -e
 }
 
@@ -212,9 +235,9 @@ partion_disk(){
 encrypt_drive(){
 	if ask_yes_no "$WANT_ENCRYPTION"; then
 		set +e
-		cryptsetup -y -v -q luksFormat "$root_path"
+		cryptsetup -y -v -q luksFormat "$root_path" -d /dev/shm/encryption_password
 		if [ "$?" -eq 0 ]; then
-			cryptsetup open "$root_path" croot
+			cryptsetup open "$root_path" croot -d /dev/shm/encryption_password
 		else
 			encrypt_drive
 		fi
@@ -289,7 +312,13 @@ copy_script_to_chroot(){
 }
 
 run_arch_chroot(){
-	arch-chroot /mnt /bin/sh -c "/mnt/root/${SCRIPT_NAME} 'part2'"
+	arch-chroot /mnt /bin/sh -c "/root/${SCRIPT_NAME} part2"
+}
+
+clean_up(){
+	rm -f /dev/shm/encryption_password
+	rm -f "/mnt/root/${SCRIPT_NAME}"
+	rm -f /mnt/root/.env
 }
 
 reboot_system(){
@@ -358,10 +387,8 @@ setup_initramfs(){
 }
 
 change_root_password(){
-	set +e
 	echo 'Change root password..'
 	passwd
-	set -e
 }
 
 run_part2(){
@@ -401,6 +428,7 @@ run_part1(){
 	copy_script_to_chroot
 	run_arch_chroot
 	unmount_mnt
+	clean_up
 	reboot_system
 }
 
